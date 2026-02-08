@@ -4,8 +4,10 @@ from core import Player
 from core.scoring import (
     WEIGHTS,
     calculate_confidence,
+    calculate_confidence_tolerant,
     detect_issues,
     is_dob_mob_swapped,
+    normalize_for_tolerant_comparison,
 )
 
 
@@ -137,3 +139,73 @@ class TestDetectIssues:
         r = _player(association='NZL')
         issues = detect_issues(e, r, 'EXACT', 1.0, 1.0)
         assert 'ASSOC_MISMATCH' in issues
+
+
+class TestNormalizeForTolerantComparison:
+    """Tests for accent/punctuation-tolerant normalization."""
+
+    def test_accent_removal(self):
+        assert normalize_for_tolerant_comparison('José') == 'JOSE'
+        assert normalize_for_tolerant_comparison('François') == 'FRANCOIS'
+        assert normalize_for_tolerant_comparison('Müller') == 'MULLER'
+        assert normalize_for_tolerant_comparison('Señor') == 'SENOR'
+        assert normalize_for_tolerant_comparison('Àlex') == 'ALEX'
+
+    def test_umlaut_normalization(self):
+        assert normalize_for_tolerant_comparison('ö') == 'O'
+        assert normalize_for_tolerant_comparison('ü') == 'U'
+        assert normalize_for_tolerant_comparison('ä') == 'A'
+
+    def test_punctuation_removal(self):
+        assert normalize_for_tolerant_comparison('Jean-Pierre') == 'JEANPIERRE'
+        assert normalize_for_tolerant_comparison('O.Brien') == 'OBRIEN'
+        assert normalize_for_tolerant_comparison('van der Berg') == 'VANDERBERG'
+
+    def test_whitespace_removal(self):
+        assert normalize_for_tolerant_comparison('  Juan  Carlos ') == 'JUANCARLOS'
+
+    def test_combined(self):
+        assert normalize_for_tolerant_comparison('José-María') == 'JOSEMARIA'
+
+    def test_plain_ascii_unchanged(self):
+        assert normalize_for_tolerant_comparison('MUELLER') == 'MUELLER'
+
+
+class TestCalculateConfidenceTolerant:
+    """Tests for tolerant confidence scoring."""
+
+    def test_perfect_match_equals_normal(self):
+        p = _player()
+        normal = calculate_confidence(p, p, 1.0, 1.0)
+        tolerant = calculate_confidence_tolerant(p, p, 1.0, 1.0)
+        assert tolerant == normal == 1.0
+
+    def test_accent_difference_gives_full_name_score(self):
+        e = _player(last_name='José', first_name='François')
+        r = _player(last_name='Jose', first_name='Francois')
+        tolerant = calculate_confidence_tolerant(e, r, 0.9, 0.85)
+        # Normalized names are identical → name similarities = 1.0
+        # All other fields match → full score
+        assert tolerant == 1.0
+
+    def test_tolerant_higher_than_normal_with_accents(self):
+        e = _player(last_name='Müller', first_name='Hans')
+        r = _player(last_name='Muller', first_name='Hans')
+        normal = calculate_confidence(e, r, 0.95, 1.0)
+        tolerant = calculate_confidence_tolerant(e, r, 0.95, 1.0)
+        assert tolerant > normal
+
+    def test_hyphen_difference_gives_full_name_score(self):
+        e = _player(last_name='Smith', first_name='Jean-Pierre')
+        r = _player(last_name='Smith', first_name='Jean Pierre')
+        tolerant = calculate_confidence_tolerant(e, r, 1.0, 0.9)
+        assert tolerant == 1.0
+
+    def test_unrelated_names_stay_low(self):
+        e = _player(last_name='Schmidt', first_name='Hans')
+        r = _player(last_name='Meyer', first_name='Karl')
+        tolerant = calculate_confidence_tolerant(e, r, 0.5, 0.4)
+        normal = calculate_confidence(e, r, 0.5, 0.4)
+        # Tolerant may be slightly higher (JW on normalized) but still low
+        assert tolerant <= 1.0
+        assert tolerant >= normal

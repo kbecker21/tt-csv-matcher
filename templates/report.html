@@ -165,7 +165,7 @@
         <tr>
             <th class="gh gh-event" colspan="8">Event</th>
             <th class="gh gh-ref" colspan="8">Referenz</th>
-            <th class="gh gh-result" colspan="3">Ergebnis</th>
+            <th class="gh gh-result" colspan="4">Ergebnis</th>
         </tr>
         <tr>
             {%- for col in columns %}
@@ -203,6 +203,7 @@
             <td{% if 'YOB_MISMATCH' in iss %} class="hl"{% endif %}>{{ row.Ref_YoB }}</td>
             <td>{{ row.Match_Type }}</td>
             <td class="confidence">{{ row.Confidence }}</td>
+            <td class="confidence">{{ row.Confidence_Tolerant }}</td>
             <td class="issues-cell">{{ row.Issues }}</td>
         </tr>
         {%- endfor %}

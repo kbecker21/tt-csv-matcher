@@ -31,6 +31,7 @@ CSV_COLUMNS = [
     'Ref_YoB',
     'Match_Type',
     'Confidence',
+    'Confidence_Tolerant',
     'Issues',
 ]
 
@@ -58,6 +59,7 @@ def _result_to_row(result: MatchResult) -> dict:
         'Ref_YoB': str(ref.yob) if ref else '',
         'Match_Type': result.match_type,
         'Confidence': f'{result.confidence:.4f}',
+        'Confidence_Tolerant': f'{result.confidence_tolerant:.4f}',
         'Issues': ', '.join(result.issues),
         # Set of issue codes for targeted cell highlighting in HTML
         '_issues': set(result.issues),

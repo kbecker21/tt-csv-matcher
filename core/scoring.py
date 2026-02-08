@@ -1,5 +1,9 @@
 """Confidence scoring and issue detection for player matches."""
 
+import unicodedata
+
+from rapidfuzz.distance import JaroWinkler
+
 from core import Player
 
 WEIGHTS: dict[str, float] = {
@@ -33,6 +37,75 @@ def calculate_confidence(
     score = (
         WEIGHTS['lastname'] * lastname_sim
         + WEIGHTS['firstname'] * firstname_sim
+        + WEIGHTS['dob'] * (1.0 if event.dob == ref.dob else 0.0)
+        + WEIGHTS['mob'] * (1.0 if event.mob == ref.mob else 0.0)
+        + WEIGHTS['yob'] * (1.0 if event.yob == ref.yob else 0.0)
+        + WEIGHTS['sex'] * (1.0 if event.sex.upper() == ref.sex.upper() else 0.0)
+        + WEIGHTS['association'] * (1.0 if event.association.upper() == ref.association.upper() else 0.0)
+    )
+    return round(score, 4)
+
+
+def normalize_for_tolerant_comparison(text: str) -> str:
+    """Normalize text for tolerant name comparison.
+
+    Removes accents/diacritics via NFD decomposition, strips spaces,
+    hyphens, dots, commas and semicolons, then uppercases.
+
+    Args:
+        text: Raw name string.
+
+    Returns:
+        Normalized string for comparison.
+    """
+    # NFD decomposition: split base characters from combining marks
+    decomposed = unicodedata.normalize('NFD', text)
+    # Remove combining marks (category 'Mn')
+    stripped = ''.join(ch for ch in decomposed if unicodedata.category(ch) != 'Mn')
+    # Remove whitespace and punctuation characters
+    for ch in (' ', '-', '.', ',', ';'):
+        stripped = stripped.replace(ch, '')
+    return stripped.upper()
+
+
+def calculate_confidence_tolerant(
+    event: Player,
+    ref: Player,
+    lastname_sim: float,
+    firstname_sim: float,
+) -> float:
+    """Calculate tolerant confidence score using accent-/punctuation-normalized names.
+
+    If normalized names are identical, similarity is set to 1.0.
+    Otherwise falls back to Jaro-Winkler on the normalized forms.
+
+    Args:
+        event: Player from the event file.
+        ref: Player from the reference database.
+        lastname_sim: Original Jaro-Winkler similarity for last name.
+        firstname_sim: Original Jaro-Winkler similarity for first name.
+
+    Returns:
+        Tolerant confidence score between 0.0 and 1.0.
+    """
+    norm_event_ln = normalize_for_tolerant_comparison(event.last_name)
+    norm_ref_ln = normalize_for_tolerant_comparison(ref.last_name)
+    norm_event_fn = normalize_for_tolerant_comparison(event.first_name)
+    norm_ref_fn = normalize_for_tolerant_comparison(ref.first_name)
+
+    if norm_event_ln == norm_ref_ln:
+        ln_sim_t = 1.0
+    else:
+        ln_sim_t = max(lastname_sim, JaroWinkler.similarity(norm_event_ln, norm_ref_ln))
+
+    if norm_event_fn == norm_ref_fn:
+        fn_sim_t = 1.0
+    else:
+        fn_sim_t = max(firstname_sim, JaroWinkler.similarity(norm_event_fn, norm_ref_fn))
+
+    score = (
+        WEIGHTS['lastname'] * ln_sim_t
+        + WEIGHTS['firstname'] * fn_sim_t
         + WEIGHTS['dob'] * (1.0 if event.dob == ref.dob else 0.0)
         + WEIGHTS['mob'] * (1.0 if event.mob == ref.mob else 0.0)
         + WEIGHTS['yob'] * (1.0 if event.yob == ref.yob else 0.0)

@@ -26,4 +26,5 @@ class MatchResult:
     ref_player: Optional[Player]
     match_type: str       # EXACT, NAME_SWAP, FUZZY, NONE
     confidence: float     # 0.0 – 1.0
+    confidence_tolerant: float = 0.0  # 0.0 – 1.0 (tolerant name comparison)
     issues: list[str] = field(default_factory=list)

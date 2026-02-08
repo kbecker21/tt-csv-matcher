@@ -6,7 +6,7 @@ from collections import defaultdict
 from rapidfuzz.distance import JaroWinkler
 
 from core import Player, MatchResult
-from core.scoring import calculate_confidence, detect_issues
+from core.scoring import calculate_confidence, calculate_confidence_tolerant, detect_issues
 
 log = logging.getLogger(__name__)
 
@@ -62,11 +62,13 @@ def _pick_best_candidate(
         if confidence > best_confidence:
             best_confidence = confidence
             issues = detect_issues(event, ref, match_type, ln_sim, fn_sim)
+            conf_tolerant = calculate_confidence_tolerant(event, ref, ln_sim, fn_sim)
             best_result = MatchResult(
                 event_player=event,
                 ref_player=ref,
                 match_type=match_type,
                 confidence=confidence,
+                confidence_tolerant=conf_tolerant,
                 issues=issues,
             )
 
@@ -109,11 +111,13 @@ def _try_fuzzy_match(
             if confidence > best_confidence:
                 best_confidence = confidence
                 issues = detect_issues(event, ref, 'FUZZY', ln_sim, fn_sim)
+                conf_tolerant = calculate_confidence_tolerant(event, ref, ln_sim, fn_sim)
                 best_result = MatchResult(
                     event_player=event,
                     ref_player=ref,
                     match_type='FUZZY',
                     confidence=confidence,
+                    confidence_tolerant=conf_tolerant,
                     issues=issues,
                 )
 
