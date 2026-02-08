@@ -145,6 +145,14 @@
         <label for="filter-search">Suche:</label>
         <input type="text" id="filter-search" placeholder="Name, ID, Association...">
     </div>
+    <div>
+        <label for="filter-conf-tolerant">Conf. Tolerant:</label>
+        <select id="filter-conf-tolerant">
+            <option value="">Alle</option>
+            <option value="100">Nur 100%</option>
+            <option value="lt-100">Unter 100%</option>
+        </select>
+    </div>
     <span class="filter-count" id="filter-count"></span>
 </div>
 
@@ -184,7 +192,8 @@
         {%- set iss = row._issues %}
         <tr class="match-{{ row.Match_Type }}"
             data-match-type="{{ row.Match_Type }}"
-            data-has-issues="{{ 'yes' if iss and 'NO_MATCH' not in iss else 'no' }}">
+            data-has-issues="{{ 'yes' if iss and 'NO_MATCH' not in iss else 'no' }}"
+            data-conf-tolerant="{{ row.Confidence_Tolerant }}">
             <td>{{ row.Event_ExternID }}</td>
             <td{% if 'NAME_SWAPPED' in iss %} class="hl-swap"{% elif 'LASTNAME_FUZZY' in iss %} class="hl"{% endif %}>{{ row.Event_LastName }}</td>
             <td{% if 'NAME_SWAPPED' in iss %} class="hl-swap"{% elif 'FIRSTNAME_FUZZY' in iss %} class="hl"{% endif %}>{{ row.Event_FirstName }}</td>
@@ -220,6 +229,7 @@
     var filterType = document.getElementById('filter-type');
     var filterIssues = document.getElementById('filter-issues');
     var filterSearch = document.getElementById('filter-search');
+    var filterConfTolerant = document.getElementById('filter-conf-tolerant');
     var filterCount = document.getElementById('filter-count');
 
     var currentSort = { col: -1, asc: true };
@@ -247,6 +257,7 @@
         var typeVal = filterType.value;
         var issuesVal = filterIssues.value;
         var searchVal = filterSearch.value.toLowerCase();
+        var confTolVal = filterConfTolerant.value;
         var visible = 0;
         var rows = tbody.querySelectorAll('tr');
         rows.forEach(function(row) {
@@ -255,6 +266,14 @@
             if (show && issuesVal === 'has-issues' && row.dataset.hasIssues !== 'yes') show = false;
             if (show && issuesVal === 'no-issues' && row.dataset.hasIssues !== 'no') show = false;
             if (show && searchVal && row.textContent.toLowerCase().indexOf(searchVal) === -1) show = false;
+            if (show && confTolVal === '100') {
+                var confTol = parseFloat(row.dataset.confTolerant || '0');
+                if (isNaN(confTol) || confTol < 0.9999) show = false;
+            }
+            if (show && confTolVal === 'lt-100') {
+                var confTolLt = parseFloat(row.dataset.confTolerant || '0');
+                if (isNaN(confTolLt) || confTolLt >= 0.9999) show = false;
+            }
             row.classList.toggle('hidden', !show);
             if (show) visible++;
         });
@@ -264,6 +283,7 @@
     filterType.addEventListener('change', applyFilters);
     filterIssues.addEventListener('change', applyFilters);
     filterSearch.addEventListener('input', applyFilters);
+    filterConfTolerant.addEventListener('change', applyFilters);
     applyFilters();
 })();
 </script>
