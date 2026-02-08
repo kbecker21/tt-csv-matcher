@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Match-Report: {{ event_name }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eef1f5; color: #333; padding: 24px; }
+
+        /* Header */
+        .header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+        .header h1 { font-size: 1.4em; color: #1a252f; }
+        .header .subtitle { font-size: 0.85em; color: #888; }
+
+        /* Dashboard cards */
+        .dashboard { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+        .card { background: #fff; border-radius: 8px; padding: 14px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); min-width: 120px; flex: 1; }
+        .card .value { font-size: 1.6em; font-weight: 700; color: #1a252f; }
+        .card .label { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .card.accent-green  .value { color: #2e7d32; }
+        .card.accent-yellow .value { color: #f57f17; }
+        .card.accent-orange .value { color: #e65100; }
+        .card.accent-red    .value { color: #c62828; }
+        .card.accent-blue   .value { color: #1565c0; }
+
+        /* Issue breakdown — compact inline */
+        .issue-bar { background: #fff; border-radius: 8px; padding: 12px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; display: flex; gap: 24px; flex-wrap: wrap; align-items: center; font-size: 0.82em; }
+        .issue-bar .ib-title { font-weight: 600; color: #555; }
+        .issue-bar .ib-item { color: #666; }
+        .issue-bar .ib-item b { color: #c62828; font-weight: 700; }
+
+        /* Filter bar */
+        .filter-bar { background: #fff; padding: 12px 20px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .filter-bar label { font-size: 0.8em; font-weight: 600; color: #555; }
+        .filter-bar select, .filter-bar input { padding: 5px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 0.82em; background: #fff; }
+        .filter-bar input { width: 200px; }
+        .filter-count { font-size: 0.8em; color: #888; margin-left: auto; }
+
+        /* Legend */
+        .legend { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.78em; color: #666; }
+        .legend-color { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ccc; }
+
+        /* Table */
+        .table-wrap { overflow-x: auto; }
+        table.report { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; font-size: 0.78em; }
+        table.report th { color: #fff; padding: 8px 6px; text-align: left; cursor: pointer; user-select: none; white-space: nowrap; }
+        table.report th:hover { filter: brightness(1.15); }
+        table.report th .sort-arrow { margin-left: 3px; opacity: 0.4; }
+        table.report th.sorted-asc .sort-arrow::after  { content: "\25B2"; opacity: 1; }
+        table.report th.sorted-desc .sort-arrow::after { content: "\25BC"; opacity: 1; }
+        table.report td { padding: 5px 6px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+        table.report tbody tr:hover td { background: rgba(0,0,0,0.03); }
+
+        /* Group headers */
+        th.gh { font-size: 0.85em; font-weight: 700; letter-spacing: 0.5px; text-align: center; }
+        th.gh-event   { background: #37474f; }
+        th.gh-ref     { background: #455a64; }
+        th.gh-result  { background: #263238; }
+        th.col-event  { background: #546e7a; }
+        th.col-ref    { background: #607d8b; }
+        th.col-result { background: #37474f; }
+
+        /* Match type row stripes */
+        tr.match-NAME_SWAP td { background-color: #fffde7; }
+        tr.match-FUZZY td     { background-color: #fff8e1; }
+        tr.match-NONE td      { background-color: #fce4ec; }
+
+        /* Mismatch highlighting — issue-driven */
+        td.hl { background-color: #ffcdd2 !important; font-weight: 600; }
+        td.hl-swap { background-color: #ffe082 !important; font-weight: 600; }
+
+        .issues-cell { color: #b71c1c; }
+        .confidence { text-align: center; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Match-Report</h1>
+    <span class="subtitle">{{ event_name }}</span>
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard">
+    <div class="card">
+        <div class="value">{{ stats.total }}</div>
+        <div class="label">Gesamt</div>
+    </div>
+    <div class="card accent-green">
+        <div class="value">{{ stats.exact }}</div>
+        <div class="label">Exakt</div>
+    </div>
+    <div class="card accent-yellow">
+        <div class="value">{{ stats.name_swap }}</div>
+        <div class="label">Name-Swap</div>
+    </div>
+    <div class="card accent-orange">
+        <div class="value">{{ stats.fuzzy }}</div>
+        <div class="label">Fuzzy</div>
+    </div>
+    <div class="card accent-red">
+        <div class="value">{{ stats.none }}</div>
+        <div class="label">Kein Match</div>
+    </div>
+    <div class="card accent-blue">
+        <div class="value">{{ stats.issues_total }}</div>
+        <div class="label">Mit Fehlern</div>
+    </div>
+</div>
+
+<!-- Issue breakdown -->
+<div class="issue-bar">
+    <span class="ib-title">Fehlerdetails:</span>
+    <span class="ib-item">DoB/MoB vertauscht <b>{{ stats.dob_mob_swapped }}</b></span>
+    <span class="ib-item">Geburtstag <b>{{ stats.dob_mismatch }}</b></span>
+    <span class="ib-item">Monat <b>{{ stats.mob_mismatch }}</b></span>
+    <span class="ib-item">Jahr <b>{{ stats.yob_mismatch }}</b></span>
+    <span class="ib-item">Nationalitaet <b>{{ stats.assoc_mismatch }}</b></span>
+    <span class="ib-item">Geschlecht <b>{{ stats.sex_mismatch }}</b></span>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+    <div>
+        <label for="filter-type">Typ:</label>
+        <select id="filter-type">
+            <option value="">Alle</option>
+            <option value="EXACT">EXACT</option>
+            <option value="NAME_SWAP">NAME_SWAP</option>
+            <option value="FUZZY">FUZZY</option>
+            <option value="NONE">NONE</option>
+        </select>
+    </div>
+    <div>
+        <label for="filter-issues">Issues:</label>
+        <select id="filter-issues">
+            <option value="">Alle</option>
+            <option value="has-issues">Nur mit Issues</option>
+            <option value="no-issues">Ohne Issues</option>
+        </select>
+    </div>
+    <div>
+        <label for="filter-search">Suche:</label>
+        <input type="text" id="filter-search" placeholder="Name, ID, Association...">
+    </div>
+    <span class="filter-count" id="filter-count"></span>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:#fff;"></div> Exakt</div>
+    <div class="legend-item"><div class="legend-color" style="background:#fffde7;"></div> Name-Swap</div>
+    <div class="legend-item"><div class="legend-color" style="background:#fff8e1;"></div> Fuzzy</div>
+    <div class="legend-item"><div class="legend-color" style="background:#fce4ec;"></div> Kein Match</div>
+    <div class="legend-item"><div class="legend-color" style="background:#ffe082;"></div> Swap-Feld</div>
+    <div class="legend-item"><div class="legend-color" style="background:#ffcdd2;"></div> Mismatch-Feld</div>
+</div>
+
+<!-- Data table -->
+<div class="table-wrap">
+<table class="report" id="report-table">
+    <thead>
+        <tr>
+            <th class="gh gh-event" colspan="8">Event</th>
+            <th class="gh gh-ref" colspan="8">Referenz</th>
+            <th class="gh gh-result" colspan="3">Ergebnis</th>
+        </tr>
+        <tr>
+            {%- for col in columns %}
+            {%- if loop.index0 < 8 %}
+            <th class="col-event" data-col="{{ loop.index0 }}">{{ col }}<span class="sort-arrow"></span></th>
+            {%- elif loop.index0 < 16 %}
+            <th class="col-ref" data-col="{{ loop.index0 }}">{{ col }}<span class="sort-arrow"></span></th>
+            {%- else %}
+            <th class="col-result" data-col="{{ loop.index0 }}">{{ col }}<span class="sort-arrow"></span></th>
+            {%- endif %}
+            {%- endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {%- for row in rows %}
+        {%- set iss = row._issues %}
+        <tr class="match-{{ row.Match_Type }}"
+            data-match-type="{{ row.Match_Type }}"
+            data-has-issues="{{ 'yes' if iss and 'NO_MATCH' not in iss else 'no' }}">
+            <td>{{ row.Event_ExternID }}</td>
+            <td{% if 'NAME_SWAPPED' in iss %} class="hl-swap"{% elif 'LASTNAME_FUZZY' in iss %} class="hl"{% endif %}>{{ row.Event_LastName }}</td>
+            <td{% if 'NAME_SWAPPED' in iss %} class="hl-swap"{% elif 'FIRSTNAME_FUZZY' in iss %} class="hl"{% endif %}>{{ row.Event_FirstName }}</td>
+            <td{% if 'SEX_MISMATCH' in iss %} class="hl"{% endif %}>{{ row.Event_Sex }}</td>
+            <td{% if 'ASSOC_MISMATCH' in iss %} class="hl"{% endif %}>{{ row.Event_Association }}</td>
+            <td{% if 'DOB_MISMATCH' in iss or 'DOB_MOB_SWAPPED' in iss %} class="hl"{% endif %}>{{ row.Event_DoB }}</td>
+            <td{% if 'MOB_MISMATCH' in iss or 'DOB_MOB_SWAPPED' in iss %} class="hl"{% endif %}>{{ row.Event_MoB }}</td>
+            <td{% if 'YOB_MISMATCH' in iss %} class="hl"{% endif %}>{{ row.Event_YoB }}</td>
+            <td>{{ row.Ref_ExternID }}</td>
+            <td{% if 'NAME_SWAPPED' in iss %} class="hl-swap"{% elif 'LASTNAME_FUZZY' in iss %} class="hl"{% endif %}>{{ row.Ref_LastName }}</td>
+            <td{% if 'NAME_SWAPPED' in iss %} class="hl-swap"{% elif 'FIRSTNAME_FUZZY' in iss %} class="hl"{% endif %}>{{ row.Ref_FirstName }}</td>
+            <td{% if 'SEX_MISMATCH' in iss %} class="hl"{% endif %}>{{ row.Ref_Sex }}</td>
+            <td{% if 'ASSOC_MISMATCH' in iss %} class="hl"{% endif %}>{{ row.Ref_Association }}</td>
+            <td{% if 'DOB_MISMATCH' in iss or 'DOB_MOB_SWAPPED' in iss %} class="hl"{% endif %}>{{ row.Ref_DoB }}</td>
+            <td{% if 'MOB_MISMATCH' in iss or 'DOB_MOB_SWAPPED' in iss %} class="hl"{% endif %}>{{ row.Ref_MoB }}</td>
+            <td{% if 'YOB_MISMATCH' in iss %} class="hl"{% endif %}>{{ row.Ref_YoB }}</td>
+            <td>{{ row.Match_Type }}</td>
+            <td class="confidence">{{ row.Confidence }}</td>
+            <td class="issues-cell">{{ row.Issues }}</td>
+        </tr>
+        {%- endfor %}
+    </tbody>
+</table>
+</div>
+
+<script>
+(function() {
+    var table = document.getElementById('report-table');
+    var tbody = table.querySelector('tbody');
+    var headerRow = table.querySelectorAll('thead tr')[1];
+    var headers = headerRow.querySelectorAll('th');
+    var filterType = document.getElementById('filter-type');
+    var filterIssues = document.getElementById('filter-issues');
+    var filterSearch = document.getElementById('filter-search');
+    var filterCount = document.getElementById('filter-count');
+
+    var currentSort = { col: -1, asc: true };
+
+    headers.forEach(function(th, idx) {
+        th.addEventListener('click', function() {
+            var asc = (currentSort.col === idx) ? !currentSort.asc : true;
+            currentSort = { col: idx, asc: asc };
+            headers.forEach(function(h) { h.classList.remove('sorted-asc', 'sorted-desc'); });
+            th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b) {
+                var aVal = a.children[idx].textContent.trim();
+                var bVal = b.children[idx].textContent.trim();
+                var aNum = parseFloat(aVal), bNum = parseFloat(bVal);
+                var cmp = (!isNaN(aNum) && !isNaN(bNum)) ? aNum - bNum : aVal.localeCompare(bVal, 'de');
+                return asc ? cmp : -cmp;
+            });
+            rows.forEach(function(row) { tbody.appendChild(row); });
+            applyFilters();
+        });
+    });
+
+    function applyFilters() {
+        var typeVal = filterType.value;
+        var issuesVal = filterIssues.value;
+        var searchVal = filterSearch.value.toLowerCase();
+        var visible = 0;
+        var rows = tbody.querySelectorAll('tr');
+        rows.forEach(function(row) {
+            var show = true;
+            if (typeVal && row.dataset.matchType !== typeVal) show = false;
+            if (show && issuesVal === 'has-issues' && row.dataset.hasIssues !== 'yes') show = false;
+            if (show && issuesVal === 'no-issues' && row.dataset.hasIssues !== 'no') show = false;
+            if (show && searchVal && row.textContent.toLowerCase().indexOf(searchVal) === -1) show = false;
+            row.classList.toggle('hidden', !show);
+            if (show) visible++;
+        });
+        filterCount.textContent = visible + ' / ' + rows.length;
+    }
+
+    filterType.addEventListener('change', applyFilters);
+    filterIssues.addEventListener('change', applyFilters);
+    filterSearch.addEventListener('input', applyFilters);
+    applyFilters();
+})();
+</script>
+</body>
+</html>

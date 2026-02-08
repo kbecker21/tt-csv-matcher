@@ -1,0 +1,22 @@
+# Claude Code
+.claude/
+
+# Pytest
+.pytest_cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Daten (Datenschutz - personenbezogene Spielerdaten)
+data/*.csv
+
+# Ergebnisdateien (nur im Wurzelverzeichnis)
+/report.csv
+/report.html
+/reports/
+
+# Projektspezifische Docs (nicht fuer Repo)
+CLAUDE.md
+SPEC.md
