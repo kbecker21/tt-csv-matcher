@@ -63,6 +63,20 @@ class TestCalculateConfidence:
         )
         assert abs(score - round(expected, 4)) < 1e-9
 
+    def test_dob_mob_swap_yields_full_score(self):
+        """A detected DoB/MoB swap must not penalize the confidence score."""
+        e = _player(dob=6, mob=15)
+        r = _player(dob=15, mob=6)
+        score = calculate_confidence(e, r, 1.0, 1.0)
+        assert score == 1.0
+
+    def test_single_date_mismatch_still_penalized(self):
+        """A plain date mismatch (no swap pattern) still reduces the score."""
+        e = _player(dob=5)
+        r = _player(dob=15)
+        score = calculate_confidence(e, r, 1.0, 1.0)
+        assert score == 1.0 - WEIGHTS['dob']
+
 
 class TestIsDobMobSwapped:
     """Tests for DoB/MoB swap detection."""
@@ -209,3 +223,10 @@ class TestCalculateConfidenceTolerant:
         # Tolerant may be slightly higher (JW on normalized) but still low
         assert tolerant <= 1.0
         assert tolerant >= normal
+
+    def test_dob_mob_swap_yields_full_score(self):
+        """A detected DoB/MoB swap must not penalize the tolerant confidence score."""
+        e = _player(dob=6, mob=15)
+        r = _player(dob=15, mob=6)
+        score = calculate_confidence_tolerant(e, r, 1.0, 1.0)
+        assert score == 1.0

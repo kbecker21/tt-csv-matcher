@@ -17,6 +17,26 @@ WEIGHTS: dict[str, float] = {
 }
 
 
+def is_dob_mob_swapped(event: Player, ref: Player) -> bool:
+    """Check if day and month of birth are swapped between event and ref.
+
+    Only flags a swap when day != month (otherwise swapping is a no-op).
+
+    Args:
+        event: Player from the event file.
+        ref: Player from the reference database.
+
+    Returns:
+        True if DoB and MoB appear to be swapped.
+    """
+    return (
+        event.dob == ref.mob
+        and event.mob == ref.dob
+        and event.yob == ref.yob
+        and event.dob != event.mob  # Guard: only flag when swap changes values
+    )
+
+
 def calculate_confidence(
     event: Player,
     ref: Player,
@@ -24,6 +44,9 @@ def calculate_confidence(
     firstname_sim: float,
 ) -> float:
     """Calculate the confidence score for a match.
+
+    A detected DoB/MoB swap is treated as a correct match (same as NAME_SWAP),
+    so both dob and mob contribute their full weight to the score.
 
     Args:
         event: Player from the event file.
@@ -34,11 +57,12 @@ def calculate_confidence(
     Returns:
         Confidence score between 0.0 and 1.0.
     """
+    dob_swapped = is_dob_mob_swapped(event, ref)
     score = (
         WEIGHTS['lastname'] * lastname_sim
         + WEIGHTS['firstname'] * firstname_sim
-        + WEIGHTS['dob'] * (1.0 if event.dob == ref.dob else 0.0)
-        + WEIGHTS['mob'] * (1.0 if event.mob == ref.mob else 0.0)
+        + WEIGHTS['dob'] * (1.0 if event.dob == ref.dob or dob_swapped else 0.0)
+        + WEIGHTS['mob'] * (1.0 if event.mob == ref.mob or dob_swapped else 0.0)
         + WEIGHTS['yob'] * (1.0 if event.yob == ref.yob else 0.0)
         + WEIGHTS['sex'] * (1.0 if event.sex.upper() == ref.sex.upper() else 0.0)
         + WEIGHTS['association'] * (1.0 if event.association.upper() == ref.association.upper() else 0.0)
@@ -103,36 +127,17 @@ def calculate_confidence_tolerant(
     else:
         fn_sim_t = max(firstname_sim, JaroWinkler.similarity(norm_event_fn, norm_ref_fn))
 
+    dob_swapped = is_dob_mob_swapped(event, ref)
     score = (
         WEIGHTS['lastname'] * ln_sim_t
         + WEIGHTS['firstname'] * fn_sim_t
-        + WEIGHTS['dob'] * (1.0 if event.dob == ref.dob else 0.0)
-        + WEIGHTS['mob'] * (1.0 if event.mob == ref.mob else 0.0)
+        + WEIGHTS['dob'] * (1.0 if event.dob == ref.dob or dob_swapped else 0.0)
+        + WEIGHTS['mob'] * (1.0 if event.mob == ref.mob or dob_swapped else 0.0)
         + WEIGHTS['yob'] * (1.0 if event.yob == ref.yob else 0.0)
         + WEIGHTS['sex'] * (1.0 if event.sex.upper() == ref.sex.upper() else 0.0)
         + WEIGHTS['association'] * (1.0 if event.association.upper() == ref.association.upper() else 0.0)
     )
     return round(score, 4)
-
-
-def is_dob_mob_swapped(event: Player, ref: Player) -> bool:
-    """Check if day and month of birth are swapped between event and ref.
-
-    Only flags a swap when day != month (otherwise swapping is a no-op).
-
-    Args:
-        event: Player from the event file.
-        ref: Player from the reference database.
-
-    Returns:
-        True if DoB and MoB appear to be swapped.
-    """
-    return (
-        event.dob == ref.mob
-        and event.mob == ref.dob
-        and event.yob == ref.yob
-        and event.dob != event.mob  # Guard: only flag when swap changes values
-    )
 
 
 def detect_issues(
